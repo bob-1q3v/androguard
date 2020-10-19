@@ -369,7 +369,7 @@ class ArrayStoreInstruction(IRForm):
                     if self.array == old:
                         self.array = new.value()
                     if self.index == old:
-                        self.array = new.value()
+                        self.index = new.value()
                 else:
                     v_m[old] = new
         else:
