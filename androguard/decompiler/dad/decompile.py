@@ -28,7 +28,13 @@ from androguard.decompiler.dad.dast import (
     JSONWriter,
     parse_descriptor,
     literal_string,
+    literal_class,
+    literal_bool,
+    literal_int,
     literal_hex_int,
+    literal_long,
+    literal_float,
+    literal_double,
     dummy
 )
 from androguard.decompiler.dad.dataflow import (
@@ -56,10 +62,23 @@ def get_field_ast(field):
         expr = dummy(str(val))
 
         if val is not None:
-            if field.get_descriptor() == 'Ljava/lang/String;':
+            descriptor = str(field.get_descriptor())
+            if descriptor == 'Ljava/lang/String;':
                 expr = literal_string(val)
+            elif descriptor == 'Z':
+                expr = literal_bool(val == 'True')
+            elif descriptor in 'ISC':
+                expr = literal_int(val)
             elif field.proto == 'B':
                 expr = literal_hex_int(struct.unpack('<b', struct.pack("B", val))[0])
+            elif descriptor in 'J':
+                expr = literal_long(val)
+            elif descriptor in 'F':
+                expr = literal_float(val)
+            elif descriptor in 'D':
+                expr = literal_double(val)
+            elif descriptor == 'Ljava/lang/Class;':
+                expr = literal_class(val)
 
     return {
         'triple': triple,
