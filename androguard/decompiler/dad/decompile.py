@@ -59,7 +59,7 @@ def get_field_ast(field):
     expr = None
     if field.init_value:
         val = field.init_value.value
-        expr = dummy(str(val))
+        expr = None
 
         if val is not None:
             descriptor = str(field.get_descriptor())
@@ -79,6 +79,8 @@ def get_field_ast(field):
                 expr = literal_double(val)
             elif descriptor == 'Ljava/lang/Class;':
                 expr = literal_class(val)
+            else:
+                expr = dummy(str(val))
 
     return {
         'triple': triple,
