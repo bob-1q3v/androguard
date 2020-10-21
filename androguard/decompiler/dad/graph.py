@@ -525,7 +525,7 @@ def construct(start_block, vmap, exceptions):
 
     if len(lexit_nodes) > 1:
         # Not sure that this case is possible...
-        logger.error('Multiple exit nodes found !')
+        #logger.error('Multiple exit nodes found !')
         graph.exit = graph.rpo[-1]
     elif len(lexit_nodes) < 1:
         # A method can have no return if it has throw statement(s) or if its
