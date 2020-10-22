@@ -53,7 +53,7 @@ logger = logging.getLogger('dad')
 
 
 # No seperate DvField class currently
-def get_field_ast(field):
+def get_field_ast(field, annotations):
     triple = field.get_class_name()[1:-1], field.get_name(), field.get_descriptor()
 
     expr = None
@@ -86,9 +86,41 @@ def get_field_ast(field):
         'triple': triple,
         'type': parse_descriptor(field.get_descriptor()),
         'flags': util.get_access_field(field.get_access_flags()),
+        'annotations': annotations,
         'expr': expr,
     }
 
+def get_annotations(cm, annotations):
+    result = []
+    if annotations:
+        annotation_offsets = [annotation.get_annotations_off() for annotation in annotations]
+        annotation_sets = [cm.get_obj_by_offset(annotation_offset) for annotation_offset in annotation_offsets]
+        encoded_annotations = []
+        for annotation_set_item in annotation_sets:
+            annotation_off_item_set = annotation_set_item.get_annotation_off_item()
+            for annotation_off_item in annotation_off_item_set:
+                encoded_annotations.append(cm.get_obj_by_offset(annotation_off_item.get_annotation_off()).get_annotation())
+        for encoded_annotation in encoded_annotations:
+            annotation_type = cm.get_type(encoded_annotation.get_type_idx())
+            annotation_objs = []
+            for obj in encoded_annotation.get_obj():
+                annotation_objs.append(get_annotation_value(obj.get_value()))
+            result.append([annotation_type, annotation_objs])
+    return result
+
+def get_annotation_value(value):
+    if isinstance(value, dvm.EncodedArray):
+        values = value.get_values()
+        result = ""
+        for value in values:
+            result += get_annotation_value(value)
+        return result
+    elif isinstance(value, dvm.EncodedValue):
+        return get_annotation_value(value.get_value())
+    elif value != None:
+        return str(value)
+    else:
+        return ""
 
 class DvMethod:
     """
@@ -97,12 +129,13 @@ class DvMethod:
 
     :param androguard.core.analysis.analysis.MethodAnalysis methanalysis:
     """
-    def __init__(self, methanalysis):
+    def __init__(self, methanalysis, annotations=None):
         method = methanalysis.get_method()
         self.method = method
         self.start_block = next(methanalysis.get_basic_blocks().get(), None)
         self.cls_name = method.get_class_name()
         self.name = method.get_name()
+        self.annotations = annotations
         self.lparams = []
         self.var_to_name = defaultdict()
         self.writer = None
@@ -270,6 +303,7 @@ class DvClass:
         self.name = name[:-1]
 
         self.vma = vma
+        self.annotations_directory_item = dvclass.annotations_directory_item
         self.methods = dvclass.get_methods()
         self.fields = dvclass.get_fields()
         self.code = []
@@ -303,7 +337,11 @@ class DvClass:
     def process_method(self, num, doAST=False):
         method = self.methods[num]
         if not isinstance(method, DvMethod):
-            self.methods[num] = DvMethod(self.vma.get_method(method))
+            method_annotations = None
+            if self.annotations_directory_item != None:
+                method_annotations = self.annotations_directory_item.get_method_annotations(method.get_method_idx())
+            annotations = get_annotations(method.CM, method_annotations)
+            self.methods[num] = DvMethod(self.vma.get_method(method), annotations=annotations)
             self.methods[num].process(doAST=doAST)
         else:
             method.process(doAST=doAST)
@@ -317,7 +355,13 @@ class DvClass:
                 logger.warning('Error decompiling method %s: %s', self.methods[i], e)
 
     def get_ast(self):
-        fields = [get_field_ast(f) for f in self.fields]
+        fields = []
+        for field in self.fields:
+            field_annotations = None
+            if self.annotations_directory_item != None:
+                field_annotations = self.annotations_directory_item.get_field_annotations(field.get_field_idx())
+            field_annotations = get_annotations(field.CM, field_annotations)
+            fields.append(get_field_ast(field, field_annotations))
         methods = []
         for m in self.methods:
             if isinstance(m, DvMethod) and m.ast:
@@ -330,6 +374,7 @@ class DvClass:
             'flags': self.access,
             'isInterface': isInterface,
             'interfaces': list(map(parse_descriptor, self.interfaces)),
+            'annotations': None,
             'fields': fields,
             'methods': methods,
         }

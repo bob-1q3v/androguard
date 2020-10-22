@@ -483,6 +483,7 @@ class JSONWriter:
             'flags': flags,
             'ret': parse_descriptor(m.type),
             'params': paramdecls,
+            'annotations': m.annotations,
             'comments': [],
             'body': body,
         }

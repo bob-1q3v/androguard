@@ -1066,20 +1066,24 @@ class AnnotationsDirectoryItem:
         """
         return self.annotated_parameters_size
 
-    def get_field_annotations(self):
+    def get_field_annotations(self, off=None):
         """
         Return the list of associated field annotations
 
         :rtype: a list of :class:`FieldAnnotation`
         """
+        if off != None:
+            return [annotation for annotation in self.field_annotations if annotation.get_field_idx() == off]
         return self.field_annotations
 
-    def get_method_annotations(self):
+    def get_method_annotations(self, off=None):
         """
         Return the list of associated method annotations
 
         :rtype: a list of :class:`MethodAnnotation`
         """
+        if off != None:
+            return [annotation for annotation in self.method_annotations if annotation.get_method_idx() == off]
         return self.method_annotations
 
     def get_parameter_annotations(self):
@@ -2689,7 +2693,7 @@ class EncodedField:
 
     def get_field_idx(self):
         """
-        Return the real index of the method
+        Return the real index of the field
 
         :rtype: int
         """
