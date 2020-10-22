@@ -304,6 +304,7 @@ class DvClass:
 
         self.vma = vma
         self.annotations_directory_item = dvclass.annotations_directory_item
+        self.annotations = dvclass.get_annotations()
         self.methods = dvclass.get_methods()
         self.fields = dvclass.get_fields()
         self.code = []
@@ -374,7 +375,7 @@ class DvClass:
             'flags': self.access,
             'isInterface': isInterface,
             'interfaces': list(map(parse_descriptor, self.interfaces)),
-            'annotations': None,
+            'annotations': self.annotations,
             'fields': fields,
             'methods': methods,
         }
