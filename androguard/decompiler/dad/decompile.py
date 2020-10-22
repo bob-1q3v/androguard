@@ -95,28 +95,51 @@ def get_annotations(cm, annotation_offsets):
     annotation_sets = [cm.get_obj_by_offset(annotation_offset) for annotation_offset in annotation_offsets]
     encoded_annotations = []
     for annotation_set_item in annotation_sets:
-        annotation_off_item_list = annotation_set_item.get_annotation_off_item()
-        for annotation_off_item in annotation_off_item_list:
-            annotation_offset = annotation_off_item.get_annotation_off()
-            annotation_item = cm.get_obj_by_offset(annotation_offset)
-            encoded_annotations.append(annotation_item.get_annotation())
-    for encoded_annotation in encoded_annotations:
-        annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-        annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
-        result.append([annotation_type, annotation_objs])
+        if isinstance(annotation_set_item, dvm.AnnotationSetItem):
+            annotation_off_item_list = annotation_set_item.get_annotation_off_item()
+            for annotation_off_item in annotation_off_item_list:
+                annotation_offset = annotation_off_item.get_annotation_off()
+                annotation_item = cm.get_obj_by_offset(annotation_offset)
+                encoded_annotations.append(annotation_item.get_annotation())
+
+            for encoded_annotation in encoded_annotations:
+                annotation_type = cm.get_type(encoded_annotation.get_type_idx())
+                annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
+                result.append([annotation_type, annotation_objs])
+        elif isinstance(annotation_set_item, dvm.AnnotationSetRefList):
+            annotation_set_ref_list = annotation_set_item.get_list()
+            for annotation_set_ref_item in annotation_set_ref_list:
+                annotation_offset = annotation_set_ref_item.get_annotations_off()
+                if annotation_offset != 0:
+                    annotation_set = cm.get_obj_by_offset(annotation_offset)
+                    annotation_set_items = annotation_set.get_annotation_off_item()
+                    param_result = []
+                    for annotation_set_item in annotation_set_items:
+                        annotation_set_item_offset = annotation_set_item.get_annotation_off()
+                        annotation_item = cm.get_obj_by_offset(annotation_set_item_offset)
+                        encoded_annotations.append(annotation_item.get_annotation())
+
+                    for encoded_annotation in encoded_annotations:
+                        annotation_type = cm.get_type(encoded_annotation.get_type_idx())
+                        annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
+                        param_result.append([annotation_type, annotation_objs])
+                    encoded_annotations.clear()
+                    result.append(param_result)
+                else:
+                    result.append(None)
 
     return result
 
 def get_annotation_value(value):
     if isinstance(value, dvm.EncodedArray):
-        value_list = [get_annotation_value(val) for val in value.get_values()]
+        value_list = list(map(get_annotation_value, value.get_values()))
         return ''.join(value_list)
     elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
         return get_annotation_value(value.get_value())
     elif isinstance(value, list):
-        return [get_annotation_value(val) for val in value]
+        value_list = list(map(get_annotation_value, value))
+        return ''.join(value_list)
     else:
-        print(type(value))
         return str(value)
 
 class DvMethod:
@@ -126,13 +149,14 @@ class DvMethod:
 
     :param androguard.core.analysis.analysis.MethodAnalysis methanalysis:
     """
-    def __init__(self, methanalysis, annotations=None):
+    def __init__(self, methanalysis, annotations=None, param_annotations=None):
         method = methanalysis.get_method()
         self.method = method
         self.start_block = next(methanalysis.get_basic_blocks().get(), None)
         self.cls_name = method.get_class_name()
         self.name = method.get_name()
         self.annotations = annotations
+        self.param_annotations = param_annotations
         self.lparams = []
         self.var_to_name = defaultdict()
         self.writer = None
@@ -301,7 +325,7 @@ class DvClass:
 
         self.vma = vma
         self.annotations_directory_item = dvclass.annotations_directory_item
-        self.annotations = None
+        self.annotations = []
         if self.annotations_directory_item != None:
             annotation_off = self.annotations_directory_item.get_class_annotations_off()
             if annotation_off != 0:
@@ -339,12 +363,16 @@ class DvClass:
     def process_method(self, num, doAST=False):
         method = self.methods[num]
         if not isinstance(method, DvMethod):
-            method_annotations = None
+            method_annotations = []
+            param_annotations = []
             if self.annotations_directory_item != None:
                 method_annotation_items = self.annotations_directory_item.get_method_annotations(method.get_method_idx())
                 method_annotation_offsets = [annotation.get_annotations_off() for annotation in method_annotation_items]
                 method_annotations = get_annotations(method.CM, method_annotation_offsets)
-            self.methods[num] = DvMethod(self.vma.get_method(method), annotations=method_annotations)
+                param_annotation_items = self.annotations_directory_item.get_parameter_annotations(method.get_method_idx())
+                param_annotation_offsets = [annotation.get_annotations_off() for annotation in param_annotation_items]
+                param_annotations = get_annotations(method.CM, param_annotation_offsets)
+            self.methods[num] = DvMethod(self.vma.get_method(method), annotations=method_annotations, param_annotations=param_annotations)
             self.methods[num].process(doAST=doAST)
         else:
             method.process(doAST=doAST)
@@ -360,7 +388,7 @@ class DvClass:
     def get_ast(self):
         fields = []
         for field in self.fields:
-            field_annotations = None
+            field_annotations = []
             if self.annotations_directory_item != None:
                 field_annotation_items = self.annotations_directory_item.get_field_annotations(field.get_field_idx())
                 field_annotation_offsets = [annotation.get_annotations_off() for annotation in field_annotation_items]

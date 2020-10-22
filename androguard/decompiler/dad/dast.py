@@ -78,8 +78,8 @@ def unary_postfix(left, op):
     return ['Unary', [left], op, True]
 
 
-def var_decl(typen, var):
-    return [typen, var]
+def var_decl(typen, var, annotation=None):
+    return [typen, var, annotation]
 
 
 def dummy(*args):
@@ -467,10 +467,11 @@ class JSONWriter:
             params = list(range(len(m.params_type)))
 
         paramdecls = []
-        for ptype, name in zip(m.params_type, params):
+        param_annotations = m.param_annotations if len(m.param_annotations) == len(params) else [None] * len(params)
+        for ptype, name, ann in zip(m.params_type, params, param_annotations):
             t = parse_descriptor(ptype)
             v = local('p{}'.format(name))
-            paramdecls.append(var_decl(t, v))
+            paramdecls.append(var_decl(t, v, ann))
 
         if self.graph is None:
             body = None

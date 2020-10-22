@@ -969,7 +969,7 @@ class ParameterAnnotation:
 
         :rtype: int
         """
-        return self.get_method_idx
+        return self.method_idx
 
     def get_annotations_off(self):
         """
@@ -1086,12 +1086,14 @@ class AnnotationsDirectoryItem:
             return [annotation for annotation in self.method_annotations if annotation.get_method_idx() == off]
         return self.method_annotations
 
-    def get_parameter_annotations(self):
+    def get_parameter_annotations(self, off=None):
         """
         Return the list of associated method parameter annotations
 
         :rtype: a list of :class:`ParameterAnnotation`
         """
+        if off != None:
+            return [annotation for annotation in self.parameter_annotations if annotation.get_method_idx() == off]
         return self.parameter_annotations
 
     def set_off(self, off):
