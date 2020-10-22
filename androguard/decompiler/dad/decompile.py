@@ -53,7 +53,7 @@ logger = logging.getLogger('dad')
 
 
 # No seperate DvField class currently
-def get_field_ast(field, annotations):
+def get_field_ast(field, annotations=None):
     triple = field.get_class_name()[1:-1], field.get_name(), field.get_descriptor()
 
     expr = None
@@ -90,37 +90,34 @@ def get_field_ast(field, annotations):
         'expr': expr,
     }
 
-def get_annotations(cm, annotations):
+def get_annotations(cm, annotation_offsets):
     result = []
-    if annotations:
-        annotation_offsets = [annotation.get_annotations_off() for annotation in annotations]
-        annotation_sets = [cm.get_obj_by_offset(annotation_offset) for annotation_offset in annotation_offsets]
-        encoded_annotations = []
-        for annotation_set_item in annotation_sets:
-            annotation_off_item_set = annotation_set_item.get_annotation_off_item()
-            for annotation_off_item in annotation_off_item_set:
-                encoded_annotations.append(cm.get_obj_by_offset(annotation_off_item.get_annotation_off()).get_annotation())
-        for encoded_annotation in encoded_annotations:
-            annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-            annotation_objs = []
-            for obj in encoded_annotation.get_obj():
-                annotation_objs.append(get_annotation_value(obj.get_value()))
-            result.append([annotation_type, annotation_objs])
+    annotation_sets = [cm.get_obj_by_offset(annotation_offset) for annotation_offset in annotation_offsets]
+    encoded_annotations = []
+    for annotation_set_item in annotation_sets:
+        annotation_off_item_list = annotation_set_item.get_annotation_off_item()
+        for annotation_off_item in annotation_off_item_list:
+            annotation_offset = annotation_off_item.get_annotation_off()
+            annotation_item = cm.get_obj_by_offset(annotation_offset)
+            encoded_annotations.append(annotation_item.get_annotation())
+    for encoded_annotation in encoded_annotations:
+        annotation_type = cm.get_type(encoded_annotation.get_type_idx())
+        annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
+        result.append([annotation_type, annotation_objs])
+
     return result
 
 def get_annotation_value(value):
     if isinstance(value, dvm.EncodedArray):
-        values = value.get_values()
-        result = ""
-        for value in values:
-            result += get_annotation_value(value)
-        return result
-    elif isinstance(value, dvm.EncodedValue):
+        value_list = [get_annotation_value(val) for val in value.get_values()]
+        return ''.join(value_list)
+    elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
         return get_annotation_value(value.get_value())
-    elif value != None:
-        return str(value)
+    elif isinstance(value, list):
+        return [get_annotation_value(val) for val in value]
     else:
-        return ""
+        print(type(value))
+        return str(value)
 
 class DvMethod:
     """
@@ -304,7 +301,11 @@ class DvClass:
 
         self.vma = vma
         self.annotations_directory_item = dvclass.annotations_directory_item
-        self.annotations = dvclass.get_annotations()
+        self.annotations = None
+        if self.annotations_directory_item != None:
+            annotation_off = self.annotations_directory_item.get_class_annotations_off()
+            if annotation_off != 0:
+                self.annotations = get_annotations(dvclass.CM, [annotation_off])
         self.methods = dvclass.get_methods()
         self.fields = dvclass.get_fields()
         self.code = []
@@ -340,9 +341,10 @@ class DvClass:
         if not isinstance(method, DvMethod):
             method_annotations = None
             if self.annotations_directory_item != None:
-                method_annotations = self.annotations_directory_item.get_method_annotations(method.get_method_idx())
-            annotations = get_annotations(method.CM, method_annotations)
-            self.methods[num] = DvMethod(self.vma.get_method(method), annotations=annotations)
+                method_annotation_items = self.annotations_directory_item.get_method_annotations(method.get_method_idx())
+                method_annotation_offsets = [annotation.get_annotations_off() for annotation in method_annotation_items]
+                method_annotations = get_annotations(method.CM, method_annotation_offsets)
+            self.methods[num] = DvMethod(self.vma.get_method(method), annotations=method_annotations)
             self.methods[num].process(doAST=doAST)
         else:
             method.process(doAST=doAST)
@@ -360,9 +362,10 @@ class DvClass:
         for field in self.fields:
             field_annotations = None
             if self.annotations_directory_item != None:
-                field_annotations = self.annotations_directory_item.get_field_annotations(field.get_field_idx())
-            field_annotations = get_annotations(field.CM, field_annotations)
-            fields.append(get_field_ast(field, field_annotations))
+                field_annotation_items = self.annotations_directory_item.get_field_annotations(field.get_field_idx())
+                field_annotation_offsets = [annotation.get_annotations_off() for annotation in field_annotation_items]
+                field_annotations = get_annotations(field.CM, field_annotation_offsets)
+            fields.append(get_field_ast(field, annotations=field_annotations))
         methods = []
         for m in self.methods:
             if isinstance(m, DvMethod) and m.ast:
