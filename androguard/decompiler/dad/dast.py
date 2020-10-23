@@ -223,7 +223,7 @@ def write_inplace_if_possible(lhs, rhs):
 def visit_expr(op):
     if isinstance(op, instruction.ArrayLengthExpression):
         expr = visit_expr(op.var_map[op.array])
-        return field_access([None, 'length', None], expr)
+        return field_access([None, 'length', 'I'], expr)
     if isinstance(op, instruction.ArrayLoadExpression):
         array_expr = visit_expr(op.var_map[op.array])
         index_expr = visit_expr(op.var_map[op.idx])
