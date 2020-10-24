@@ -467,8 +467,7 @@ class JSONWriter:
             params = list(range(len(m.params_type)))
 
         paramdecls = []
-        param_annotations = m.param_annotations if len(m.param_annotations) == len(params) else [None] * len(params)
-        for ptype, name, ann in zip(m.params_type, params, param_annotations):
+        for ptype, name, ann in zip(m.params_type, params, m.param_annotations):
             t = parse_descriptor(ptype)
             v = local('p{}'.format(name))
             paramdecls.append(var_decl(t, v, ann))
@@ -484,7 +483,7 @@ class JSONWriter:
             'flags': flags,
             'ret': parse_descriptor(m.type),
             'params': paramdecls,
-            'annotations': m.annotations,
+            'annotations': m.method_annotations,
             'comments': [],
             'body': body,
         }
