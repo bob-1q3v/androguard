@@ -201,7 +201,7 @@ def register_propagation(graph, du, ud):
     while change:
         change = False
         for node in graph.rpo:
-            for i, ins in node.get_loc_with_ins():
+            for i, ins in list(zip(range(*node.ins_range), node.ins)):
                 logger.debug('Treating instruction %d: %s', i, ins)
                 logger.debug('  Used vars: %s', ins.get_used_vars())
                 for var in ins.get_used_vars():
