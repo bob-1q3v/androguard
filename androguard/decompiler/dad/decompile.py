@@ -140,13 +140,11 @@ def get_parameter_annotations(cm, annotations):
 
 def get_annotation_value(value):
     if isinstance(value, dvm.EncodedArray):
-        value_list = [get_annotation_value(x) for x in value.get_values()]
-        return ''.join(value_list)
+        return [get_annotation_value(x) for x in value.get_values()]
     elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
         return get_annotation_value(value.get_value())
     elif isinstance(value, list):
-        value_list = [get_annotation_value(x) for x in value]
-        return ''.join(value_list)
+        return [get_annotation_value(x) for x in value]
     else:
         return str(value)
 
