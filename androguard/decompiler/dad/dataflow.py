@@ -198,7 +198,6 @@ def register_propagation(graph, du, ud):
     To do the propagation, we use the computed DU and UD chains.
     """
     change = True
-    replaced = {}
     while change:
         change = False
         for node in graph.rpo:
@@ -270,7 +269,6 @@ def register_propagation(graph, du, ud):
 
                     logger.debug('     => Modification of the instruction!')
                     logger.debug('      - BEFORE: %s', ins)
-                    replaced[var] = orig_ins
                     ins.replace(var, orig_ins.get_rhs())
                     logger.debug('      -> AFTER: %s', ins)
                     logger.debug('\t UD(%s, %s) : %s', var, i, ud[var, i])
@@ -299,9 +297,6 @@ def register_propagation(graph, du, ud):
                         for def_loc in old_ud:
                             du[var2, def_loc].remove(loc)
                             du[var2, def_loc].append(i)
-
-                        if var2 in replaced.keys() : 
-                            orig_ins.replace(var2,replaced[var2].get_rhs())
 
                     new_du = du[var, loc]
                     logger.debug('\t new_du(%s, %s): %s', var, loc, new_du)
