@@ -143,17 +143,9 @@ class Variable(IRForm):
         self.declared = False
         self.type = None
         self.name = value
-        self.types = []
 
     def get_used_vars(self):
         return [self.v]
-
-    def add_types(self, _type) : 
-        self.types.append(_type)
-    
-    def set_type(self, _type) : 
-        self.type = _type
-        self.add_types(_type)
 
     def is_ident(self):
         return True
@@ -176,8 +168,7 @@ class Param(Variable):
         super().__init__(value)
         self.declared = True
         self.type = atype
-        self.add_types(atype)
-        self.this = False        
+        self.this = False
 
     def is_const(self):
         return True

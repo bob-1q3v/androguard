@@ -366,16 +366,16 @@ def split_variables(graph, lvars, DU, UD):
         if nversions == 1:
             continue
         orig_var = lvars.pop(var)
-        for i, (defs, uses) in enumerate(sorted(versions)): # for ordered pop
+        for i, (defs, uses) in enumerate(versions):
             if min(defs) < 0:  # Param
                 if orig_var.this:
-                    new_version = ThisParam(var, orig_var.types.pop(0))
+                    new_version = ThisParam(var, orig_var.type)
                 else:
-                    new_version = Param(var, orig_var.types.pop(0))
+                    new_version = Param(var, orig_var.type)
                 lvars[var] = new_version
             else:
                 new_version = Variable(nb_vars)
-                new_version.type = orig_var.types.pop(0)
+                new_version.type = orig_var.type
                 lvars[nb_vars] = new_version  # add new version to variables
                 nb_vars += 1
             new_version.name = '%d_%d' % (var, i)
