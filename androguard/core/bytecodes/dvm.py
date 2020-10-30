@@ -2403,35 +2403,6 @@ class MethodIdItem:
 
         self.reload()
 
-    def get_method_owner(self):
-        """
-        Return the class name which has this method as a member
-        This method only checks for classes in current dex file
-
-        :rtype: string
-        """
-        method_descriptor = mutf8.MUTF8String.join(i for i in self.proto_idx_value)
-        class_name = self.class_idx_value
-        class_def = self.CM.vm.get_class(class_name)
-        while isinstance(class_def, ClassDefItem):
-            for method in class_def.get_methods():
-                # Check if method name is same
-                if method.get_name() == self.name_idx_value:
-                    # Check if method descriptor is same
-                    if method.get_descriptor() == method_descriptor:
-                        return class_name
-
-            # Method does not exist in current class, check super class.
-            class_idx = class_def.superclass_idx
-            class_name = self.CM.get_type(class_idx)
-            try:
-                class_def = self.CM.get_obj_by_offset(class_idx)
-            except:
-                # Super class does not exist in current dex file
-                break
-
-        return class_name
-
     def reload(self):
         self.class_idx_value = self.CM.get_type(self.class_idx)
         self.proto_idx_value = self.CM.get_proto(self.proto_idx)
@@ -2516,7 +2487,7 @@ class MethodIdItem:
         return [self.get_class_name(), self.get_name(), self.get_proto()]
 
     def get_triple(self):
-        return self.get_method_owner()[1:-1], self.get_name(
+        return self.get_class_name()[1:-1], self.get_name(
         ), self.get_real_descriptor()
 
     def show(self):
