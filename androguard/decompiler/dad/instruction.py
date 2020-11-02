@@ -143,6 +143,14 @@ class Variable(IRForm):
         self.declared = False
         self.type = None
         self.name = value
+        self.types = {}
+    
+    def set_type(self, ins, _type) : 
+        self.type = _type
+        self.types[id(ins)] = _type
+    
+    def get_type_with_ins(self, ins) : 
+        return self.types[id(ins)]
 
     def get_used_vars(self):
         return [self.v]
@@ -201,7 +209,10 @@ class AssignExpression(IRForm):
         if lhs:
             self.lhs = lhs.v
             self.var_map[lhs.v] = lhs
-            lhs.set_type(rhs.get_type())
+            if isinstance(lhs, Variable) : 
+                lhs.set_type(self, rhs.get_type())
+            else : 
+                lhs.set_type(rhs.get_type())
         else:
             self.lhs = None
         self.rhs = rhs
@@ -250,7 +261,10 @@ class MoveExpression(IRForm):
         self.lhs = lhs.v
         self.rhs = rhs.v
         self.var_map.update([(lhs.v, lhs), (rhs.v, rhs)])
-        lhs.set_type(rhs.get_type())
+        if isinstance(lhs, Variable) : 
+            lhs.set_type(self, rhs.get_type())
+        else : 
+            lhs.set_type(rhs.get_type())
 
     def has_side_effect(self):
         return False
@@ -1022,7 +1036,10 @@ class MoveExceptionExpression(RefExpression):
     def __init__(self, ref, _type):
         super().__init__(ref)
         self.type = _type
-        ref.set_type(_type)
+        if isinstance(ref, Variable) : 
+            ref.set_type(self, _type)
+        else : 
+            ref.set_type(_type)
 
     def get_lhs(self):
         return self.ref
@@ -1380,3 +1397,4 @@ class StaticExpression(IRForm):
 
     def __str__(self):
         return '{}.{}'.format(self.cls, self.name)
+

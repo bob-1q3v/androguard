@@ -384,6 +384,14 @@ def split_variables(graph, lvars, DU, UD):
                 if loc < 0:
                     continue
                 ins = graph.get_ins_from_loc(loc)
+                curlhs = ins.var_map[ins.get_lhs()]
+
+                if isinstance(curlhs, Variable) : 
+                    lhsType = ins.var_map[ins.get_lhs()].get_type_with_ins(ins)
+                else : 
+                    lhsType = orig_var.type
+                    
+                new_version.type = lhsType
                 ins.replace_lhs(new_version)
                 DU[(new_version.value(), loc)] = DU.pop((var, loc))
             for loc in uses:
