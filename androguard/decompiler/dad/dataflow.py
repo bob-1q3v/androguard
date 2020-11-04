@@ -17,7 +17,7 @@
 
 import logging
 from collections import defaultdict
-from androguard.decompiler.dad.instruction import (Variable, ThisParam, Param)
+from androguard.decompiler.dad.instruction import (Variable, ThisParam, Param, AssignExpression, InvokeInstruction, MoveExpression, NewInstance)
 from androguard.decompiler.dad.util import build_path, common_dom
 from androguard.decompiler.dad.node import Node
 
@@ -308,6 +308,75 @@ def register_propagation(graph, du, ud):
                         graph.remove_ins(loc)
                         change = True
 
+
+def new_instance_propgation(graph, du, ud) : 
+    """
+    가끔씩 newinstance->init() 을 호출하기 전에 new newinstance 자체는 moveExpression를 통해 다른 변수에 넣어주고
+    그 new instance 변수를 활용하는 바람에 dummy 문제가 발생함, 원래는 ->init() 한 결과를 을 넣어 줘야됨
+    특히 /range 할 때 이상함
+    """
+
+    for node in graph.rpo:
+            for i, ins in node.get_loc_with_ins():
+                
+                if isinstance(ins, AssignExpression) and isinstance(ins.get_rhs(), NewInstance) :
+                    #INS = ASSIGN(VAR_15_25, NEW(Landroid/support/constraint/motion/MotionPaths;))
+                    #find VAR_15_25.<init>
+                    base = ins.get_lhs()
+                    basevar = ins.var_map[base]
+                    instance_ins = ins.get_rhs()
+                    
+                    for baseuse in du[base, i] : 
+                        useins = graph.get_ins_from_loc(baseuse)
+                        if (isinstance(useins, AssignExpression)) and (isinstance(useins.get_rhs(), InvokeInstruction)) and (useins.get_rhs().name == "<init>") and (useins.get_rhs().base == base): 
+                            useins.replace(base, instance_ins)
+                            useins.replace_lhs(basevar)
+                            graph.remove_ins(i) # remove INS
+                            break
+                    uses = du[base, i]
+
+                elif isinstance(ins, AssignExpression) and isinstance(ins.get_rhs(), InvokeInstruction) and ins.get_rhs().name == "<init>" :
+                    base = ins.get_rhs().base
+                    locs = ud[base, i]
+                    
+                    if len(locs) != 1 :
+                        continue
+
+                    loc = locs[0]
+                    if loc < 0 : 
+                        continue
+
+                    def_ins = graph.get_ins_from_loc(loc) # ASSIGN(VAR_15_25, NEW(Landroid/support/constraint/motion/MotionPaths;))
+
+                    if def_ins == None : 
+                        continue
+
+                    basevar = def_ins.var_map[def_ins.get_lhs()]
+                    ins.replace(base, def_ins.get_rhs()) ## ASSIGN(None, VAR_15_25.<init>)
+                    ins.replace_lhs(basevar)
+                    graph.remove_ins(loc) # remove def_ins
+                   # ud[base, i].remove(loc)
+                   # ud[base, loc].append(loc)
+                    uses = du[base, loc]
+
+                else : 
+                    continue
+
+                for useloc in uses :
+                    varins = graph.get_ins_from_loc(useloc)
+                    
+                    if (not isinstance(varins, MoveExpression)) or (not isinstance(varins, AssignExpression)) : 
+                        continue
+
+                    lhsvar = varins.get_lhs()
+
+                    for lhsloc in du[lhsvar, useloc]  :
+                        useins = graph.get_ins_from_loc(lhsloc)
+                        
+                        useins.replace(lhsvar, basevar)
+                    #    du[base, loc].append(lhsloc)
+                     #   du[lhsvar, useloc].remove(lhsloc)
+                    graph.remove_ins(useloc)
 
 class DummyNode(Node):
     def __init__(self, name):

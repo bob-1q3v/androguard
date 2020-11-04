@@ -44,7 +44,8 @@ from androguard.decompiler.dad.dataflow import (
     place_declarations,
     dead_code_elimination,
     register_propagation,
-    split_variables
+    split_variables,
+    new_instance_propgation
 )
 from androguard.decompiler.dad.graph import construct, simplify, split_if_nodes
 from androguard.decompiler.dad.instruction import Param, ThisParam
@@ -297,6 +298,7 @@ class DvMethod:
         split_variables(graph, self.var_to_name, def_uses, use_defs)
         dead_code_elimination(graph, def_uses, use_defs)
         register_propagation(graph, def_uses, use_defs)
+        new_instance_propgation(graph, def_uses, use_defs) #for dummy
 
         # FIXME var_to_name need to contain the created tmp variables.
         # This seems to be a workaround, we add them into the list manually
