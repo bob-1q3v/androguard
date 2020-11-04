@@ -27,6 +27,7 @@ from androguard.decompiler.dad.control_flow import identify_structures
 from androguard.decompiler.dad.dast import (
     JSONWriter,
     parse_descriptor,
+    literal,
     literal_string,
     literal_class,
     literal_bool,
@@ -35,7 +36,8 @@ from androguard.decompiler.dad.dast import (
     literal_long,
     literal_float,
     literal_double,
-    dummy
+    dummy,
+    typen
 )
 from androguard.decompiler.dad.dataflow import (
     build_def_use,
@@ -104,7 +106,7 @@ def get_annotations(cm, annotation_offsets):
 
         for encoded_annotation in encoded_annotations:
             annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-            annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
+            annotation_objs = [get_annotation_value(cm, obj) for obj in encoded_annotation.get_obj()]
             result.append([annotation_type, annotation_objs])
 
     return result
@@ -130,7 +132,7 @@ def get_parameter_annotations(cm, annotations):
                 param_result = []
                 for encoded_annotation in encoded_annotations:
                     annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-                    annotation_objs = [get_annotation_value(obj) for obj in encoded_annotation.get_obj()]
+                    annotation_objs = [get_annotation_value(cm, obj) for obj in encoded_annotation.get_obj()]
                     param_result.append([annotation_type, annotation_objs])
                 result.append(param_result)
             else:
@@ -138,16 +140,54 @@ def get_parameter_annotations(cm, annotations):
 
     return result
 
-def get_annotation_value(value):
-    if isinstance(value, dvm.EncodedArray):
-        return [get_annotation_value(x) for x in value.get_values()]
-    elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
-        return get_annotation_value(value.get_value())
-    elif isinstance(value, list):
-        return [get_annotation_value(x) for x in value]
-    else:
-        return str(value)
+def get_annotation_value(cm, anno_element):
+    arg_name = cm.get_string(anno_element.get_name_idx())
+    encoded_value = anno_element.get_value()
 
+    if isinstance(encoded_value, dvm.EncodedValue):
+        arg = encoded_value.get_value()
+        if isinstance(arg, dvm.EncodedArray):
+            val_list = arg.get_values()
+            arg_type = get_annotation_type(val_list[0], 1) if len(val_list) > 0 else None
+            arg_value = [literal(x.get_value(), get_annotation_type(x, 0)[1]) for x in val_list]
+        else:
+            arg_value = literal(arg, get_annotation_type(encoded_value, 0)[1])
+            arg_type = get_annotation_type(encoded_value, 0)
+
+    return [arg_name, arg_type, arg_value]
+
+def get_annotation_type(encoded_value, dim):
+    val_type = encoded_value.get_value_type()
+    if val_type == dvm.VALUE_BYTE:
+        return typen(".byte", dim)
+    elif val_type == dvm.VALUE_SHORT:
+        return typen(".short", dim)
+    elif val_type == dvm.VALUE_CHAR:
+        return typen(".char", dim)
+    elif val_type == dvm.VALUE_INT:
+        return typen(".int", dim)
+    elif val_type == dvm.VALUE_LONG:
+        return typen(".long", dim)
+    elif val_type == dvm.VALUE_FLOAT:
+        return typen(".float", dim)
+    elif val_type == dvm.VALUE_DOUBLE:
+        return typen(".double", dim)
+    elif val_type == dvm.VALUE_BOOLEAN:
+        return typen(".boolean", dim)
+    elif val_type == dvm.VALUE_NULL:
+        return typen(".null", dim)
+    elif val_type == dvm.VALUE_STRING:
+        return typen("java/lang/String", dim)
+    elif val_type == dvm.VALUE_TYPE:
+        return typen("java/lang/Class", dim)
+    elif val_type == dvm.VALUE_ANNOTATION:
+        return typen("java/lang/Class", dim)
+    elif val_type == dvm.VALUE_METHOD:
+        return typen("java/lang/Method", dim)
+    elif val_type == dvm.VALUE_ENUM:
+        return typen("java/lang/Enum", dim)
+    else:
+        print("Unsupported type {}".format(val_type))
 
 class DvMethod:
     """
@@ -408,7 +448,7 @@ class DvClass:
                 logger.warning('Error decompiling method %s: %s', self.methods[i], e)
 
     def get_ast(self):
-        fields = [get_field_ast(f, self.field_annotations.get(f.get_field_idx())) for f in self.fields]
+        fields = [get_field_ast(f, self.field_annotations.get(f.get_field_idx(), [])) for f in self.fields]
         methods = []
         for m in self.methods:
             if isinstance(m, DvMethod) and m.ast:
