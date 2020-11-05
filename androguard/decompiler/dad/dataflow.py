@@ -197,11 +197,11 @@ def register_propagation(graph, du, ud):
     We have to be careful to the side effects some instructions may have.
     To do the propagation, we use the computed DU and UD chains.
     """
-    deletelocs = []
     change = True
     while change:
         change = False
         for node in graph.rpo:
+            replacelocs = []
             for i, ins in node.get_loc_with_ins():
                 logger.debug('Treating instruction %d: %s', i, ins)
                 logger.debug('  Used vars: %s', ins.get_used_vars())
@@ -306,11 +306,11 @@ def register_propagation(graph, du, ud):
                     if not new_du:
                         logger.debug('\t  REMOVING INS %d', loc)
                         du.pop((var, loc))
-                        deletelocs.append(loc)
+                        replacelocs.append(loc)
                         change = True
 
-    for loc in set(deletelocs) : 
-        graph.remove_ins(loc)
+            for loc in replacelocs : 
+                graph.remove_ins(loc)
 
 def new_instance_propgation(graph, du, ud) : 
     """
@@ -320,8 +320,8 @@ def new_instance_propgation(graph, du, ud) :
     """
 
     for node in graph.rpo:
+            replacelocs = []
             for i, ins in node.get_loc_with_ins():
-                
                 if isinstance(ins, AssignExpression) and isinstance(ins.get_rhs(), NewInstance) :
                     #INS = ASSIGN(VAR_15_25, NEW(Landroid/support/constraint/motion/MotionPaths;))
                     #find VAR_15_25.<init>
@@ -334,7 +334,7 @@ def new_instance_propgation(graph, du, ud) :
                         if (isinstance(useins, AssignExpression)) and (isinstance(useins.get_rhs(), InvokeInstruction)) and (useins.get_rhs().name == "<init>") and (useins.get_rhs().base == base): 
                             useins.replace(base, instance_ins)
                             useins.replace_lhs(basevar)
-                            graph.remove_ins(i) # remove INS
+                            replacelocs.append(i) # remove INS
                             break
                     uses = du[base, i]
 
@@ -357,7 +357,7 @@ def new_instance_propgation(graph, du, ud) :
                     basevar = def_ins.var_map[def_ins.get_lhs()]
                     ins.replace(base, def_ins.get_rhs()) ## ASSIGN(None, VAR_15_25.<init>)
                     ins.replace_lhs(basevar)
-                    graph.remove_ins(loc) # remove def_ins
+                    replacelocs.append(loc) # remove def_ins
                    # ud[base, i].remove(loc)
                    # ud[base, loc].append(loc)
                     uses = du[base, loc]
@@ -379,8 +379,9 @@ def new_instance_propgation(graph, du, ud) :
                         useins.replace(lhsvar, basevar)
                     #    du[base, loc].append(lhsloc)
                      #   du[lhsvar, useloc].remove(lhsloc)
-                    graph.remove_ins(useloc)
-
+                    replacelocs.append(useloc)
+            for loc in set(replacelocs) : 
+                graph.remove_ins(loc)
 class DummyNode(Node):
     def __init__(self, name):
         super().__init__(name)
