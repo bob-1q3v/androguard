@@ -197,6 +197,7 @@ def register_propagation(graph, du, ud):
     We have to be careful to the side effects some instructions may have.
     To do the propagation, we use the computed DU and UD chains.
     """
+    deletelocs = []
     change = True
     while change:
         change = False
@@ -305,9 +306,11 @@ def register_propagation(graph, du, ud):
                     if not new_du:
                         logger.debug('\t  REMOVING INS %d', loc)
                         du.pop((var, loc))
-                        graph.remove_ins(loc)
+                        deletelocs.append(loc)
                         change = True
 
+    for loc in set(deletelocs) : 
+        graph.remove_ins(loc)
 
 def new_instance_propgation(graph, du, ud) : 
     """
