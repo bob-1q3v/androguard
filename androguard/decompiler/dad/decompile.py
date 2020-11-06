@@ -27,7 +27,6 @@ from androguard.decompiler.dad.control_flow import identify_structures
 from androguard.decompiler.dad.dast import (
     JSONWriter,
     parse_descriptor,
-    literal,
     literal_string,
     literal_class,
     literal_bool,
@@ -150,9 +149,9 @@ def get_annotation_value(cm, anno_element):
         if isinstance(arg, dvm.EncodedArray):
             val_list = arg.get_values()
             arg_type = get_annotation_type(val_list[0], 1) if len(val_list) > 0 else None
-            arg_value = [literal(x.get_value(), get_annotation_type(x, 0)[1]) for x in val_list]
+            arg_value = [x.get_value() for x in val_list]
         else:
-            arg_value = literal(arg, get_annotation_type(encoded_value, 0)[1])
+            arg_value = arg
             arg_type = get_annotation_type(encoded_value, 0)
 
     return [arg_name, arg_type, arg_value]
