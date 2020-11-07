@@ -334,7 +334,7 @@ def new_instance_propgation(graph, du, ud) :
                         if (isinstance(useins, AssignExpression)) and (isinstance(useins.get_rhs(), InvokeInstruction)) and (useins.get_rhs().name == "<init>") and (useins.get_rhs().base == base): 
                             useins.replace(base, instance_ins)
                             useins.replace_lhs(basevar)
-                            replacelocs.append(i) # remove INS
+                            replacelocs.append(i) # remove INS 
                             break
                     uses = du[base, i]
 
@@ -358,8 +358,8 @@ def new_instance_propgation(graph, du, ud) :
                     ins.replace(base, def_ins.get_rhs()) ## ASSIGN(None, VAR_15_25.<init>)
                     ins.replace_lhs(basevar)
                     replacelocs.append(loc) # remove def_ins
-                   # ud[base, i].remove(loc)
-                   # ud[base, loc].append(loc)
+                    #ud[base, i].remove(loc)
+                    #ud[base, loc].append(loc)
                     uses = du[base, loc]
 
                 else : 
@@ -368,7 +368,10 @@ def new_instance_propgation(graph, du, ud) :
                 for useloc in uses :
                     varins = graph.get_ins_from_loc(useloc)
                     
-                    if (not isinstance(varins, MoveExpression)) or (not isinstance(varins, AssignExpression)) : 
+                    if (not isinstance(varins, MoveExpression)) and (not isinstance(varins, AssignExpression)) : 
+                        continue
+
+                    if varins.get_rhs() != basevar : 
                         continue
 
                     lhsvar = varins.get_lhs()
@@ -382,6 +385,7 @@ def new_instance_propgation(graph, du, ud) :
                     replacelocs.append(useloc)
             for loc in set(replacelocs) : 
                 graph.remove_ins(loc)
+
 class DummyNode(Node):
     def __init__(self, name):
         super().__init__(name)
