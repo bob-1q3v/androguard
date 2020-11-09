@@ -330,13 +330,12 @@ def while_block_struct(graph, node_map):
             entry = node is graph.entry
             lpreds = graph.preds(node)
             lsuccs = graph.sucs(node)
-            '''
+
             for pred in lpreds:
                 graph.add_edge(node_map.get(pred, pred), new_node)
 
             for suc in lsuccs:
                 graph.add_edge(new_node, node_map.get(suc, suc))
-            '''
             if entry:
                 graph.entry = new_node
 
