@@ -2410,16 +2410,14 @@ class MethodIdItem:
 
         :rtype: string
         """
-        method_descriptor = mutf8.MUTF8String.join(i for i in self.proto_idx_value)
+        method_name = self.name_idx_value
+        method_descriptor = str(mutf8.MUTF8String.join(i for i in self.proto_idx_value))
         class_name = self.class_idx_value
         class_def = self.CM.vm.get_class(class_name)
         while isinstance(class_def, ClassDefItem):
-            for method in class_def.get_methods():
-                # Check if method name is same
-                if method.get_name() == self.name_idx_value:
-                    # Check if method descriptor is same
-                    if method.get_descriptor() == method_descriptor:
-                        return class_name
+            method = self.CM.vm.get_method_descriptor(class_name, method_name, method_descriptor)
+            if method is not None:
+                break
 
             # Method does not exist in current class, check super class.
             class_idx = class_def.superclass_idx
