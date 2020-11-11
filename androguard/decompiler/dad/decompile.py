@@ -106,7 +106,7 @@ def get_annotations(cm, annotation_offsets):
 
         for encoded_annotation in encoded_annotations:
             annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-            annotation_objs = [get_annotation_value(cm, obj) for obj in encoded_annotation.get_obj()]
+            annotation_objs = [get_annotation_arg(cm, obj) for obj in encoded_annotation.get_obj()]
             result.append([annotation_type, annotation_objs])
 
     return result
@@ -132,7 +132,7 @@ def get_parameter_annotations(cm, annotations):
                 param_result = []
                 for encoded_annotation in encoded_annotations:
                     annotation_type = cm.get_type(encoded_annotation.get_type_idx())
-                    annotation_objs = [get_annotation_value(cm, obj) for obj in encoded_annotation.get_obj()]
+                    annotation_objs = [get_annotation_arg(cm, obj) for obj in encoded_annotation.get_obj()]
                     param_result.append([annotation_type, annotation_objs])
                 result.append(param_result)
             else:
@@ -140,21 +140,27 @@ def get_parameter_annotations(cm, annotations):
 
     return result
 
-def get_annotation_value(cm, anno_element):
+def get_annotation_arg(cm, anno_element):
     arg_name = cm.get_string(anno_element.get_name_idx())
     encoded_value = anno_element.get_value()
 
     if isinstance(encoded_value, dvm.EncodedValue):
-        arg = encoded_value.get_value()
-        if isinstance(arg, dvm.EncodedArray):
-            val_list = arg.get_values()
-            arg_type = get_annotation_type(val_list[0], 1) if len(val_list) > 0 else None
-            arg_value = [x.get_value() for x in val_list]
-        else:
-            arg_value = arg
-            arg_type = get_annotation_type(encoded_value, 0)
+        arg_value = get_annotation_value(cm, encoded_value)
+        arg_type = get_annotation_type(encoded_value, 0)
 
     return [arg_name, arg_type, arg_value]
+
+def get_annotation_value(cm, value):
+    if isinstance(value, dvm.EncodedAnnotation):
+        return [get_annotation_arg(cm, x) for x in value.get_elements()]
+    elif isinstance(value, dvm.EncodedArray):
+        return [get_annotation_value(cm, x) for x in value.get_values()]
+    elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
+        return get_annotation_value(cm, value.get_value())
+    elif isinstance(value, list):
+        return [get_annotation_value(cm, x) for x in value]
+    else:
+        return str(value)
 
 def get_annotation_type(encoded_value, dim):
     val_type = encoded_value.get_value_type()
@@ -180,14 +186,22 @@ def get_annotation_type(encoded_value, dim):
         return typen("java/lang/String", dim)
     elif val_type == dvm.VALUE_TYPE:
         return typen("java/lang/Class", dim)
+    elif val_type == dvm.VALUE_ARRAY:
+        encoded_array = encoded_value.get_value()
+        if encoded_array.get_size() > 0:
+            return get_annotation_type(encoded_array.get_values()[0], dim + 1)
+        return typen(".null", dim)
     elif val_type == dvm.VALUE_ANNOTATION:
-        return typen("java/lang/Class", dim)
+        return typen("java/lang/annotation/Annotation", dim + 1)
+    elif val_type == dvm.VALUE_FIELD:
+        return typen("java/lang/Field", dim)
     elif val_type == dvm.VALUE_METHOD:
         return typen("java/lang/Method", dim)
     elif val_type == dvm.VALUE_ENUM:
         return typen("java/lang/Enum", dim)
     else:
         print("Unsupported type {}".format(val_type))
+        return typen(".null", dim)
 
 class DvMethod:
     """
