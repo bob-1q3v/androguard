@@ -192,7 +192,7 @@ def get_annotation_type(encoded_value, dim):
             return get_annotation_type(encoded_array.get_values()[0], dim + 1)
         return typen(".null", dim)
     elif val_type == dvm.VALUE_ANNOTATION:
-        return typen("java/lang/annotation/Annotation", dim + 1)
+        return typen("java/lang/annotation/Annotation", dim)
     elif val_type == dvm.VALUE_FIELD:
         return typen("java/lang/Field", dim)
     elif val_type == dvm.VALUE_METHOD:
