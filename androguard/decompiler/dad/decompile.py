@@ -152,7 +152,7 @@ def get_annotation_arg(cm, anno_element):
 
 def get_annotation_value(cm, value):
     if isinstance(value, dvm.EncodedAnnotation):
-        return [get_annotation_arg(cm, x) for x in value.get_elements()]
+        return [cm.get_type(value.get_type_idx()), [get_annotation_arg(cm, x) for x in value.get_elements()]]
     elif isinstance(value, dvm.EncodedArray):
         return [get_annotation_value(cm, x) for x in value.get_values()]
     elif isinstance(value, dvm.EncodedValue) or isinstance(value, dvm.AnnotationElement):
