@@ -153,7 +153,7 @@ def plot(cg):
 
     nx.draw_networkx_nodes(cg, pos=pos, node_color='r', nodelist=internal)
     nx.draw_networkx_nodes(cg, pos=pos, node_color='b', nodelist=external)
-    nx.draw_networkx_edges(cg, pos, arrow=True)
+    nx.draw_networkx_edges(cg, pos, arrows=True)
     nx.draw_networkx_labels(cg, pos=pos, labels={x: "{}{}".format(x.class_name, x.name) for x in cg.nodes})
     plt.draw()
     plt.show()
@@ -334,6 +334,7 @@ def androlyze_main(session, filename):
     from androguard.core.bytecodes.apk import APK
     from androguard.core.bytecodes.dvm import DalvikVMFormat
     from androguard.core.analysis.analysis import Analysis
+    from androguard.misc import AnalyzeAPK
 
     colorama.init()
 

@@ -6,9 +6,10 @@ from setuptools import setup, find_packages
 
 
 # We do not support Python <3.5 (lxml and pyqt5 are not supported as well)
-if sys.version_info < (3, 5):
+# py3.5 does not support format strings
+if sys.version_info < (3, 6):
     print("Unfortunately, your python version is not supported!\n"
-          "Please upgrade at least to Python 3.5!", file=sys.stderr)
+          "Please upgrade at least to Python 3.6!", file=sys.stderr)
     sys.exit(1)
 
 with open('requirements.txt', 'r') as fp:
@@ -71,18 +72,28 @@ setup(
     },
     install_requires=install_requires,
     extras_require={
-        'GUI': ["pyperclip", "PyQt5"],
+        'GUI': ['pyperclip', 'PyQt5'],
         'magic': [magic_package],
-        'docs': ['sphinx', "sphinxcontrib-programoutput>0.8", 'sphinx_rtd_theme'],
-        'tests': ['mock>=2.0', 'nose', 'codecov', 'coverage', 'nose-timer'],
+        'docs': [
+            'sphinx',
+            'sphinxcontrib-programoutput>0.8',
+            'sphinx_rtd_theme'
+        ],
+        'tests': [
+            magic_package,
+            'mock>=2.0',
+            'nose',
+            'codecov',
+            'coverage',
+            'nose-timer'
+        ],
     },
     setup_requires=['setuptools'],
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     classifiers=[
                  'License :: OSI Approved :: Apache Software License',
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
-                 'Programming Language :: Python :: 3.5',
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',
