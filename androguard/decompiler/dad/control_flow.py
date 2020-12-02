@@ -18,7 +18,7 @@
 import logging
 from collections import defaultdict
 from androguard.decompiler.dad.basic_blocks import (
-    CatchBlock, Condition, LoopBlock, ShortCircuitBlock, TryBlock)
+    CatchBlock, Condition, LoopBlock, ShortCircuitBlock, TryBlock, CondBlock)
 from androguard.decompiler.dad.graph import Graph
 from androguard.decompiler.dad.node import Interval
 from androguard.decompiler.dad.util import common_dom
@@ -129,25 +129,6 @@ def mark_loop(graph, start, end, interval):
     return nodes_in_loop
 
 
-def loop_type(start, end, nodes_in_loop):
-    if end.type.is_cond:
-        if start.type.is_cond:
-            if start.true in nodes_in_loop and start.false in nodes_in_loop:
-                start.looptype.is_posttest = True
-            else:
-                start.looptype.is_pretest = True
-        else:
-            start.looptype.is_posttest = True
-    else:
-        if start.type.is_cond:
-            if start.true in nodes_in_loop and start.false in nodes_in_loop:
-                start.looptype.is_endless = True
-            else:
-                start.looptype.is_pretest = True
-        else:
-            start.looptype.is_endless = True
-
-
 def loop_follow(start, end, nodes_in_loop):
     follow = None
     if start.looptype.is_pretest:
@@ -179,6 +160,30 @@ def loop_follow(start, end, nodes_in_loop):
     logger.debug('Follow of loop: %s', start.follow['loop'])
 
 
+def cond_check(node, isEnd=False) : 
+    if node.type.is_cond and isinstance(node, CondBlock) and (not isEnd or not isinstance(node, LoopBlock)) :
+        return True
+    else : 
+        return False
+
+def loop_type(start, end, nodes_in_loop):
+    if cond_check(end,isEnd=True):
+        if cond_check(start):
+            if start.true in nodes_in_loop and start.false in nodes_in_loop:
+                start.looptype.is_posttest = True
+            else:
+                start.looptype.is_pretest = True
+        else:
+            start.looptype.is_posttest = True
+    else:
+        if cond_check(start):
+            if start.true in nodes_in_loop and start.false in nodes_in_loop:
+                start.looptype.is_endless = True
+            else:
+                start.looptype.is_pretest = True
+        else:
+            start.looptype.is_endless = True
+            
 def loop_struct(graphs_list, intervals_list):
     first_graph = graphs_list[0]
     for i, graph in enumerate(graphs_list):
@@ -372,10 +377,14 @@ def catch_struct(graph, idoms):
                 graph.add_edge(pred, try_node)
 
             if try_block.type.is_stmt:
-                follow = graph.sucs(try_block)
-                if follow:
-                    try_node.follow = graph.sucs(try_block)[0]
-                else:
+                if isinstance(try_block, LoopBlock) : 
+                    follow = try_block.follow['loop']
+                    try_node.follow = follow
+                else : 
+                    follow = graph.sucs(try_block)
+                    if follow:
+                        try_node.follow = graph.sucs(try_block)[0]
+                if not follow :
                     try_node.follow = None
             elif try_block.type.is_cond:
                 loop_follow = try_block.follow['loop']
@@ -410,7 +419,6 @@ def identify_structures(graph, idoms):
     update_dom(idoms, node_map)
 
     if_unresolved = if_struct(graph, idoms)
-
     while_block_struct(graph, node_map)
     update_dom(idoms, node_map)
 
@@ -419,6 +427,7 @@ def identify_structures(graph, idoms):
         node.update_attribute_with(node_map)
         if node.startloop:
             loop_starts.append(node)
+    resolve_do_while_struct(loop_starts)
     for node in loop_starts:
         loop_type(node, node.latch, node.loop_nodes)
         loop_follow(node, node.latch, node.loop_nodes)
@@ -430,3 +439,15 @@ def identify_structures(graph, idoms):
             node.follow['if'] = follow
 
     catch_struct(graph, idoms)
+    
+def resolve_do_while_struct(loop_starts) : 
+    for i, loop in enumerate(loop_starts) :
+            pred_whiles = loop_starts[:i]
+            for wh in pred_whiles :
+                if wh.latch.type.is_cond and loop in wh.loop_nodes :
+                    for node in loop.loop_nodes + [loop.latch, loop.cond] :
+                        if node in wh.loop_nodes : 
+                            wh.loop_nodes.pop(wh.loop_nodes.index(node)) 
+                        if node == wh.latch :
+                            wh.latch = loop
+
