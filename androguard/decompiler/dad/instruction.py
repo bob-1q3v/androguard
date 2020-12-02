@@ -1056,6 +1056,7 @@ class MoveExceptionExpression(RefExpression):
         self.var_map[new.v] = new
 
     def visit(self, visitor):
+        self.var_map[self.ref].type = self.type
         return visitor.visit_move_exception(self.var_map[self.ref], data=self)
 
     def __str__(self):
