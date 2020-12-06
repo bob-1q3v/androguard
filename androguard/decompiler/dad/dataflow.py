@@ -17,7 +17,7 @@
 
 import logging
 from collections import defaultdict
-from androguard.decompiler.dad.instruction import (Variable, ThisParam, Param, AssignExpression, InvokeInstruction, MoveExpression, NewInstance)
+from androguard.decompiler.dad.instruction import (Variable, ThisParam, Param, AssignExpression, InvokeInstruction, MoveExpression, NewInstance, Constant, ConditionalExpression)
 from androguard.decompiler.dad.util import build_path, common_dom
 from androguard.decompiler.dad.node import Node
 
@@ -476,6 +476,62 @@ def split_variables(graph, lvars, DU, UD):
                 ins.replace_var(var, new_version)
                 UD[(new_version.value(), loc)] = UD.pop((var, loc))
 
+
+def change_type(graph, var, dest_type, variables, completed) : 
+    if var in completed : 
+        return
+
+    if isinstance(var, Constant) : 
+        TYPES = {
+        'void': 'V',
+        'boolean': 'Z',
+        'byte': 'B',
+        'short': 'S' ,
+        'char': 'C',
+        'int': 'I' ,
+        'long': 'J',
+        'float': 'F',
+        'double': 'D',
+        }
+
+        if dest_type == TYPES["boolean"] :
+            if var.type == TYPES["int"] : 
+                var.type = TYPES["boolean"]
+        elif dest_type[0] == "L" :  #class
+            if var.type == TYPES["int"] : #null
+                var.type = "N" #null
+
+    elif isinstance(var, Variable) : 
+        var.type = dest_type
+        completed.append(var)
+        for (defs, uses) in variables[var.v] : 
+            for loc in defs + uses : 
+                ins = graph.get_ins_from_loc(loc)
+                if isinstance(ins, AssignExpression) or isinstance(ins, MoveExpression) :
+                    if ins.get_lhs() == var.v : 
+                        change_type(graph, ins.get_rhs(), dest_type, variables, completed)
+                    elif ins.get_rhs() == var.v : 
+                        change_type(graph, ins.get_lhs(), dest_type, variables, completed)
+                if isinstance(ins, ConditionalExpression) : 
+                    if ins.arg1 == var.v : 
+                        cst = ins.var_map[ins.arg2]
+                    else :
+                        cst = ins.var_map[ins.arg1]
+                    
+                    if isinstance(cst, Constant) : 
+                        change_type(graph, cst, dest_type, variables, completed)
+ 
+def resolve_variables_type(graph, lvars, DU, UD) : 
+    completed = []
+    variables = group_variables(lvars, DU, UD)
+    for node in graph.nodes[:] : 
+        for ins in node.get_ins() : 
+            if isinstance(ins, AssignExpression) and isinstance(ins.get_rhs(), InvokeInstruction) : 
+                op = ins.get_rhs()
+                params = [op.var_map[arg] for arg in op.args]
+                for idx in range(len(params)) :
+                    if params[idx] not in completed and params[idx].type != op.ptype[idx] : 
+                        change_type(graph, params[idx], op.ptype[idx], variables, completed)
 
 def reach_def_analysis(graph, lparams):
     # We insert two special nodes : entry & exit, to the graph.

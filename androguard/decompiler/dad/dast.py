@@ -293,6 +293,8 @@ def visit_expr(op):
             return literal_double(op.cst)
         elif op.type == 'Ljava/lang/Class;':
             return literal_class(op.clsdesc)
+        elif op.type == "N" :
+            return literal_null()
         return dummy('??? Unexpected constant: ' + str(op.type))
 
     if isinstance(op, instruction.FillArrayExpression):
