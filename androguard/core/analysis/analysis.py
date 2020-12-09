@@ -533,6 +533,18 @@ class MethodAnalysis:
         """
         return self.xreffrom
 
+    def del_xref_from(self, target):
+        """
+        Returns a list of tuples containing the class, method and offset of
+        the call, from where this object was called.
+
+        The list of tuples has the form:
+        (:class:`~ClassAnalysis`,
+        :class:`~androguard.core.bytecodes.dvm.EncodedMethod` or
+        :class:`~ExternalMethod`, :class:`int`)
+        """
+        self.xreffrom.remove(target)
+
     def get_xref_to(self):
         """
         Returns a list of tuples containing the class, method and offset of
@@ -1202,6 +1214,9 @@ class ClassAnalysis:
         :return:
         """
         self.xreffrom[classobj].add((ref_kind, methodobj, offset))
+
+    def del_xref_from(self, target):
+        del self.xreffrom[target]
 
     def get_xref_from(self):
         """
