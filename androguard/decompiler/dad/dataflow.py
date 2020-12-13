@@ -375,13 +375,12 @@ def new_instance_propgation(graph, du, ud) :
                         continue
 
                     lhsvar = varins.get_lhs()
-
-                    for lhsloc in du[lhsvar, useloc]  :
+                    for lhsloc in du[lhsvar, useloc] :
+                        if len(ud[lhsvar, lhsloc]) > 1 : 
+                            continue
                         useins = graph.get_ins_from_loc(lhsloc)
-                        
                         useins.replace(lhsvar, basevar)
-                    #    du[base, loc].append(lhsloc)
-                     #   du[lhsvar, useloc].remove(lhsloc)
+
                     replacelocs.append(useloc)
             for loc in set(replacelocs) : 
                 graph.remove_ins(loc)
