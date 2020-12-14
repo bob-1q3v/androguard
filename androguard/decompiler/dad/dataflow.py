@@ -377,7 +377,7 @@ def new_instance_propgation(graph, du, ud) :
                     lhsvar = varins.get_lhs()
                     for lhsloc in du[lhsvar, useloc] :
                         if len(ud[lhsvar, lhsloc]) > 1 : 
-                            continue
+                            break
                         useins = graph.get_ins_from_loc(lhsloc)
                         useins.replace(lhsvar, basevar)
 

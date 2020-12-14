@@ -159,16 +159,29 @@ def loop_follow(start, end, nodes_in_loop):
     logger.debug('Start of loop %s', start)
     logger.debug('Follow of loop: %s', start.follow['loop'])
 
-
-def cond_check(node, isEnd=False) : 
+def is_valid_condition(graph, start, end, isEnd=False) :
+    if isEnd : 
+        node = end
+    else : 
+        node = start
     if node.type.is_cond and isinstance(node, CondBlock) and (not isEnd or not isinstance(node, LoopBlock)) :
+        for var in node.get_ins()[0].get_used_vars() :
+            if var in graph.group_var.keys() : 
+                duloc = graph.group_var[var][0][0][0] #local declartion
+                if duloc < 0 :  #parameter or global
+                    continue 
+            
+                nd = graph.get_node_from_loc(duloc) 
+                if nd.num > start.num : 
+                    return False
+                
         return True
     else : 
         return False
 
-def loop_type(start, end, nodes_in_loop):
-    if cond_check(end,isEnd=True):
-        if cond_check(start):
+def loop_type(graph, start, end, nodes_in_loop):
+    if is_valid_condition(graph, start, end, isEnd=True) :
+        if is_valid_condition(graph, start, end) : 
             if start.true in nodes_in_loop and start.false in nodes_in_loop:
                 start.looptype.is_posttest = True
             else:
@@ -176,7 +189,7 @@ def loop_type(start, end, nodes_in_loop):
         else:
             start.looptype.is_posttest = True
     else:
-        if cond_check(start):
+        if is_valid_condition(graph, start, end) : 
             if start.true in nodes_in_loop and start.false in nodes_in_loop:
                 start.looptype.is_endless = True
             else:
@@ -235,7 +248,8 @@ def switch_struct(graph, idoms):
                 n = max(ldominates, key=lambda x: x.num)
                 node.follow['switch'] = n
                 for x in unresolved:
-                    x.follow['switch'] = n
+                    if n.num > x.num : 
+                       x.follow['switch'] = n
                 unresolved = set()
             else:
                 unresolved.add(node)
@@ -419,6 +433,7 @@ def identify_structures(graph, idoms):
     update_dom(idoms, node_map)
 
     if_unresolved = if_struct(graph, idoms)
+   
     while_block_struct(graph, node_map)
     update_dom(idoms, node_map)
 
@@ -427,11 +442,11 @@ def identify_structures(graph, idoms):
         node.update_attribute_with(node_map)
         if node.startloop:
             loop_starts.append(node)
-    resolve_do_while_struct(loop_starts)
-    for node in loop_starts:
-        loop_type(node, node.latch, node.loop_nodes)
-        loop_follow(node, node.latch, node.loop_nodes)
 
+    for node in loop_starts:
+        loop_type(graph, node, node.latch, node.loop_nodes)
+        loop_follow(node, node.latch, node.loop_nodes)
+    
     for node in if_unresolved:
         follows = [n for n in (node.follow['loop'], node.follow['switch']) if n]
         if len(follows) >= 1:
@@ -440,14 +455,3 @@ def identify_structures(graph, idoms):
 
     catch_struct(graph, idoms)
     
-def resolve_do_while_struct(loop_starts) : 
-    for i, loop in enumerate(loop_starts) :
-            pred_whiles = loop_starts[:i]
-            for wh in pred_whiles :
-                if wh.latch.type.is_cond and loop in wh.loop_nodes :
-                    for node in loop.loop_nodes + [loop.latch, loop.cond] :
-                        if node in wh.loop_nodes : 
-                            wh.loop_nodes.pop(wh.loop_nodes.index(node)) 
-                        if node == wh.latch :
-                            wh.latch = loop
-
