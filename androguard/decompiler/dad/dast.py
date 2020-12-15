@@ -516,12 +516,22 @@ class JSONWriter:
             return
         if not node.type.is_return and node in self.visited_nodes:
             return
+        
+        prev_nodes = self.visited_nodes.copy()
+        not_declared = []
+
         self.visited_nodes.add(node)
         for var in node.var_to_declare:
             if not var.declared:
+                not_declared.append(var)
                 self.add(visit_decl(var))
             var.declared = True
         node.visit(self)
+
+        self.visited_nodes = prev_nodes
+        for var in node.var_to_declare:
+            if var in not_declared : 
+                var.declared = False
 
     def visit_loop_node(self, loop):
         isDo = cond_expr = body = None
