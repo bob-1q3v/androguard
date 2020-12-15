@@ -202,18 +202,11 @@ class Writer:
             return
         if not node.type.is_return and node in self.visited_nodes:
             return
-
-        prev_nodes = self.visited_nodes.copy()
-
         self.visited_nodes.add(node)
         for var in node.var_to_declare:
             var.visit_decl(self)
             var.declared = True
         node.visit(self)
-
-        self.visited_nodes = prev_nodes
-        for var in node.var_to_declare:
-            var.declared = False
 
     def visit_loop_node(self, loop):
         follow = loop.follow['loop']
