@@ -282,7 +282,7 @@ def visit_expr(op):
         if op.type == 'Ljava/lang/String;':
             return literal_string(op.cst)
         elif op.type == 'Z':
-            return literal_bool(op.cst == 0)
+            return literal_bool(op.cst == 1)
         elif op.type in 'ISCB':
             return literal_int(op.cst2)
         elif op.type in 'J':
